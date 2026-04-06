@@ -91,12 +91,70 @@ Bokchoys should ground the answer in the available data and produce a draft anal
 
 Bokchoys should generate a report-style package with tables, charts, and slide-like outputs.
 
+## Getting started
+
+### Prerequisites
+
+- Node.js 18 or later
+- An OpenAI API key (GPT-5.1 access recommended)
+
+### Setup
+
+```bash
+git clone https://github.com/eugworld/bokchoy.git
+cd bokchoy
+cp .env.example .env.local
+# Edit .env.local and add your OpenAI API key
+npm install
+npm run dev
+# Open http://localhost:3000
+```
+
+### Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | Your OpenAI API key. The copilot needs this to run the agent. |
+
+## Pages
+
+| Page | URL | What it does |
+|------|-----|-------------|
+| Landing | `/` | Product overview, architecture visualization, technical education |
+| Copilot | `/copilot` | Main chat interface — 30% chat, 70% artifacts, resizable |
+| Prompt Editor | `/prompts` | View and edit all 17 agent, specialist, skill, and policy prompts |
+| Raw Data | `/raw-data` | Browse all 12 sample datasets in table format |
+
 ## How to use this repo
 
-This repository serves different audiences:
+### If you are new
 
-- Product, operations, and non-technical teammates can use this `README.md` to understand what Bokchoys is and what it is trying to do
-- Engineers should read [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the detailed system design, agent model, tool contracts, and suggested code structure
-- PMs and prompt reviewers can use [`prompts/README.md`](./prompts/README.md) for the markdown prompt pack, including the full master prompt, specialist prompts, skills, and tool catalog
+1. Read this `README.md` to understand what Bokchoys does
+2. Open `/copilot` and try the starter prompts
+3. Open `/raw-data` to see what data the agent can analyze
 
-At this stage, the repo is more about establishing the foundation than documenting a finished production stack. As the system matures, technical setup, deployment, and environment instructions can be expanded here.
+### If you are a PM (Janhavi)
+
+1. Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the system design
+2. Open `/prompts` to read and edit all agent prompts
+3. Read [`TEAM-CHECKLISTS.md`](./TEAM-CHECKLISTS.md) for your checklist
+4. Focus on: defining ideal experience per intent, owning prompts, running evals
+
+### If you are an engineer (Atul, Rohit)
+
+1. Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) — especially the new "Recommendations to consider" section
+2. Read [`TEAM-CHECKLISTS.md`](./TEAM-CHECKLISTS.md) for your specific checklist
+3. Read the 5 key files first:
+   - `lib/agents/run-master-agent.ts` — the main orchestration flow
+   - `lib/agents/master.ts` — how the master agent is created
+   - `lib/agents/specialists.ts` — how specialists are created and connected
+   - `lib/schemas/bokchoys.ts` — all Zod schemas
+   - `lib/prompts/load-prompt.ts` — how prompts are loaded, cached, and saved
+4. Read [`prompts/README.md`](./prompts/README.md) for the prompt pack
+
+### If you are testing evals
+
+1. Read the "Evals" section in [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+2. Use `/copilot` with the 4 starter prompts to test all intent paths
+3. Check "How I worked on this" trace on each response to verify AI-decided vs template fallback
+4. Score responses using the judge prompt template in ARCHITECTURE.md

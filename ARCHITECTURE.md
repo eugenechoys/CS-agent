@@ -395,6 +395,241 @@ Analysis and reports should only say what the data supports. If data is missing 
 
 Today’s upload-backed or mock-backed helpers should be replaceable by future Choys services without changing the higher-level agent contract.
 
+## Recommendations to consider
+
+This section is for engineers (especially Atul) and PM (Janhavi) to research next. Each topic is tagged: **current state** (what exists today), **recommended next step** (highest-value thing to do), and **future consideration** (worth knowing, not urgent).
+
+### 1. Agent communication patterns
+
+**Current state**: Hub-and-spoke. The master agent calls 5 specialist agents via `.asTool()` in `lib/agents/master.ts`. Specialists are leaf nodes with no inter-specialist routing. The master keeps conversation control at all times.
+
+**Pattern comparison**:
+
+| Pattern | What it means | Best for |
+|---------|--------------|----------|
+| Sequential / prompt chaining | Agent A → Agent B → Agent C | Tasks with clear ordered steps |
+| Parallel | Multiple agents run simultaneously | Independent subtasks, speed |
+| Orchestrator-workers | Hub agent delegates to specialists | Complex, dynamic task decomposition |
+| Handoffs | One agent transfers control to another | Routing and specialization |
+| Evaluator-optimizer | Generate → evaluate → refine loop | Quality-sensitive outputs |
+| Agents as tools | Call other agents like function tools | Bounded subtasks, keep main conversation |
+
+**Recommendation**: Keep the current agents-as-tools pattern for V1. It is simple to debug, simple to evaluate, and keeps one stable voice for HR. Prototype one handoff (analyze_data → build_report) to measure whether specialist-owned conversation improves quality.
+
+**Key distinction**: Use agents as tools when the specialist helps with a bounded subtask but should not take over the conversation. Use handoffs when the specialist should own the next part of the interaction.
+
+**Must-read resources**:
+
+1. [OpenAI — Agent Orchestration](https://openai.github.io/openai-agents-python/multi_agent/) — Covers chaining, parallel, evaluator loops, handoffs, and the tools-vs-handoffs distinction. Most relevant since we use the OpenAI SDK.
+2. [OpenAI Cookbook — Parallel Agents](https://developers.openai.com/cookbook/examples/agents_sdk/parallel_agents) — Fan-out and fan-in patterns using `asyncio.gather` for independent subtasks.
+3. [OpenAI Cookbook — Multi-Agent Portfolio Collaboration](https://cookbook.openai.com/examples/agents_sdk/multi-agent-portfolio-collaboration/multi_agent_portfolio_collaboration) — Hub-and-spoke demo comparing handoff vs agent-as-tool collaboration.
+4. [Anthropic — Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) — Foundational article on prompt chaining, parallelization, orchestrator-workers, and evaluator-optimizer patterns.
+5. [Anthropic — Multi-Agent Architecture Guide](https://resources.anthropic.com/building-effective-ai-agents) — Decision framework for single-agent vs multi-agent vs workflow-based architectures.
+
+### 2. Multi-tenant considerations
+
+**Current state**: `companyName` is hardcoded to `"Choys"` in `run-master-agent.ts`. The in-memory `Map` store has no company scoping. All datasets are shared across all requests.
+
+**Problem**: Each company will have its own data tables, its own active programs, and its own tool permissions. Not every company will want or have access to all tools (for example, one company might use Slack but not WhatsApp).
+
+**Recommended next step**: Add a `companyId` field to `RunContext`. Scope all data access (datasets, programs, artifacts) by company. Introduce a per-company tool manifest that controls which tools are available to the agent for that company.
+
+**Future consideration**: Multi-company analytics (benchmarking across companies), company-specific prompt customization, and role-based access control within a company.
+
+### 3. Model selection strategy
+
+**Current state**: All 6 agents use `gpt-5.1` (set in `lib/agents/master.ts` and `lib/agents/specialists.ts`).
+
+**Recommendation**: Not every agent needs the same model. Complex reasoning agents should use stronger models. Simple formatting agents can use cheaper and faster models.
+
+| Agent | Reasoning complexity | Recommended model | Why |
+|-------|---------------------|-------------------|-----|
+| MasterHRAgent | High (routing, multi-step decisions) | gpt-5.1 | Needs deep reasoning to choose specialists |
+| HRStrategistAgent | High (creative ideation) | gpt-5.1 | Needs to generate novel program ideas |
+| InsightsAnalystAgent | High (cross-dataset reasoning) | gpt-5.1 | Needs to reason about data relationships |
+| ProgramDesignerAgent | Medium (structured output) | gpt-4.1-mini | Mostly fills structured schemas |
+| CommsPlannerAgent | Medium (message writing) | gpt-4.1-mini | Structured output with template-like patterns |
+| ReportComposerAgent | Medium (formatting) | gpt-4.1-mini | Packages existing analysis, less novel reasoning |
+| Intent classifier | Low (keyword routing) | gpt-4.1-mini or code | Could even be deterministic |
+
+**Cost implication**: Using gpt-4.1-mini for 3 specialists could reduce cost by approximately 40-60% per request with minimal quality loss on structured output tasks.
+
+**Future consideration**: Thinking models (o3, o4-mini) for the analyst agent when complex multi-step data reasoning is required.
+
+### 4. Guardrails
+
+**Current state**: Safety guardrails are prompt-only, loaded from `prompts/policies/safety-policy.md`. No SDK-level validation.
+
+**Recommended next step**: Add SDK-level guardrails:
+
+- **Input guardrails**: Check for PII in user messages, validate that requests are within HR wellbeing scope, reject harmful or discriminatory requests before they reach the agent.
+- **Output guardrails**: Validate that the agent's structured output passes Zod schema, verify that analysis claims reference actual data values, check that no medical diagnoses or discriminatory recommendations appear in the output.
+
+**HR-specific guardrail rules**:
+- Never diagnose physical or mental health conditions
+- Never recommend discriminatory, coercive, or employee-harmful interventions
+- Never claim certainty when data is weak or partial
+- All outputs must be flagged as drafts for HR review
+
+**Resource**: [OpenAI Agents SDK — Guardrails](https://openai.github.io/openai-agents-python/guardrails/)
+
+### 5. Sessions, memory, and context management
+
+This is the most important section for making Bokchoys production-ready.
+
+#### The 3 layers of agent memory
+
+Think of memory as three distinct tiers, each with a different lifespan:
+
+| Layer | Scope | Example | Implementation |
+|-------|-------|---------|----------------|
+| In-session (short-term) | Within one conversation | Remembering what user said 3 messages ago | `SQLiteSession` from OpenAI SDK |
+| Cross-session (mid-term) | Across multiple conversations | Remembering a user's preferences from last week | `RunContextWrapper` + DB-backed state |
+| Long-term / semantic | Permanent, searchable | Fetching user history via vector DB | Pinecone, Weaviate, Zep, or Mem0 |
+
+For simple automation, session memory alone might be enough. But for enterprise-level personalization and reasoning, long-term vector memory becomes key.
+
+#### How OpenAI SDK handles memory natively
+
+**Sessions** (built-in, the simplest approach): Sessions store conversation history for a specific session, allowing agents to maintain context without requiring explicit manual memory management. Each subsequent run with the same session includes the full conversation history.
+
+```python
+from agents import Agent, Runner, SQLiteSession
+
+agent = Agent(name="Choys Agent", instructions="You are a helpful assistant")
+
+# In-memory (dev only — lost on restart)
+session = SQLiteSession("user_123")
+
+# Persistent (production — survives restarts)
+session = SQLiteSession("user_123", "path/to/db.sqlite")
+
+result = await Runner.run(agent, "Hello!", session=session)
+```
+
+**Current Bokchoys state**: Conversation history is passed from the frontend as a transcript string on every request. No server-side session persistence. This means: lost on page refresh, no cross-session memory, growing token cost as conversation gets longer.
+
+**Recommended next step**: Replace frontend-passed transcript with `SQLiteSession` for development. Plan database-backed sessions for production (PostgreSQL or Supabase, since we already use PostgREST and Hoppscotch for some data access).
+
+#### Managing long contexts (2 strategies)
+
+As conversations get longer, you will hit token limits. Two approaches:
+
+**Strategy 1 — Context trimming** (simple, deterministic): Drop older turns while keeping only the last N turns. Deterministic and simple, no summarizer variability, easy to reason about state, zero added latency. Latest tool results and parameters stay verbatim.
+
+Best for: Customer support, short task agents, debugging.
+
+**Strategy 2 — Summarization** (smarter, more memory): Summarize older conversation history into a compact "state of the world so far" message. Past requirements, decisions, and rationales persist beyond the N-turn window. Creates smoother UX where the agent "remembers" commitments.
+
+Tradeoff: Details can be dropped or misweighted. If a bad fact enters the summary it can poison future behavior ("context poisoning").
+
+Best for: Coaching agents, policy Q&A, long planning sessions.
+
+**For Bokchoys**: Start with trimming (most copilot sessions are short). Add summarization later for multi-session program planning where HR works on a program over several days.
+
+#### Persistent long-term memory (cross-session)
+
+The `RunContextWrapper` in the OpenAI Agents SDK provides the foundation for state-based memory. It allows developers to define structured state objects that persist across runs.
+
+**The recommended pattern from OpenAI**: State object (user profile + global memory notes) stored in your system → distill memories during a run (tool call → session notes) → consolidate session notes into global notes at the end (dedupe + conflict resolution) → inject a well-crafted state at the start of each run with precedence rules: latest user input → session overrides → global defaults.
+
+**For vector/semantic memory** (retrieve by meaning, not exact match): Use a vector database like Pinecone, Weaviate, or Zep. Mem0 is a popular plug-in for the OpenAI SDK specifically.
+
+**For Bokchoys specifically, what should persist**:
+- Company context: name, size, department list, active programs, past program results
+- User context: role, department, past conversations, preferences
+- Program history: what was created, what worked, participation rates
+
+#### Core design principles
+
+1. **Design memory around the task, not generically.** Ask: "If this were a human HR analyst performing the same task, what would they actively hold in working memory to get the job done?"
+2. **State-based is better than retrieval-based for structured data.** Retrieval-based memory treats past interactions as loosely related documents. State-based memory encodes knowledge as structured, authoritative fields with clear precedence. The agent behaves more like a persistent concierge than a search engine.
+3. **Start simple, layer up.** SQLiteSession first, then RunContextWrapper, then vector DB. Do not over-engineer from day one.
+4. **Bound noisy content aggressively.** Tool outputs should be truncated, long text middle-truncated, and function output content items budgeted. Auto-compaction should trigger when usage crosses approximately 90% of the model's context window.
+
+#### Quick decision guide
+
+- Need memory within ONE session? → Use `SQLiteSession` (in-memory or file-based)
+- Need memory ACROSS sessions (user preferences, history)? → Use `RunContextWrapper` + structured state object, or plug in Mem0 or Redis
+- Need memory by MEANING (semantic search)? → Add a vector DB (Pinecone, Weaviate, Zep)
+- Conversation getting too long? → Short tasks: context trimming (last N turns). Long tasks: summarization.
+
+#### Key links
+
+- [Sessions (official docs)](https://openai.github.io/openai-agents-python/sessions/)
+- [Short-term memory and context trimming](https://cookbook.openai.com/examples/agents_sdk/session_memory)
+- [Long-term memory and state management](https://developers.openai.com/cookbook/examples/agents_sdk/context_personalization)
+- [Memory API reference](https://openai.github.io/openai-agents-python/ref/memory/)
+
+### 6. Streaming
+
+**Current state**: The `run()` function in `run-master-agent.ts` returns a complete result. Users see a thinking indicator with animated dots while waiting.
+
+**Recommendation**: Switch to `Runner.run_streamed()` with Server-Sent Events (SSE) to show real-time agent activity. Users would see: "Thinking..." → "Calling Strategy Expert..." → "Building your program..." → "Done."
+
+**Impact**: Better UX. Users see which specialist is working and what tools are being called, similar to OpenAI's ChatGPT interface or Claude's thinking process.
+
+**Resource**: [OpenAI Agents SDK — Streaming](https://openai.github.io/openai-agents-python/streaming/)
+
+### 7. Handoffs
+
+**Current state**: V1 deliberately chose NOT to use handoffs (`ARCHITECTURE.md`, section "Why manager-style orchestration"). This was the right starting point for simpler debugging and a stable single voice.
+
+**When handoffs add value**: Multi-step workflows where a specialist should own the next part of the conversation. For example, after the analyst finds that Engineering stress is high, the conversation could hand off to the strategist to brainstorm a targeted program — without returning to the master in between.
+
+**Recommendation**: Prototype one handoff for the analyze_data → build_report chain. Measure whether quality improves compared to the current master-routes-both approach.
+
+**Resource**: [OpenAI Agents SDK — Handoffs](https://openai.github.io/openai-agents-python/handoffs/)
+
+### 8. Evals
+
+**Current state**: Manual testing only (documented in `TEAM-CHECKLISTS.md`). No automated scoring.
+
+#### What to evaluate
+
+| Dimension | How to measure | Deterministic? |
+|-----------|---------------|----------------|
+| Intent accuracy | Does classified intent match expected? | Yes — exact match |
+| Chat brevity | Word count under 30? | Yes — count words |
+| Artifact presence | Did the agent return structured artifacts? | Yes — check if kpis, tables, charts are non-empty |
+| Data grounding | Do insights reference real data values? | Partial — check datasetsUsed is non-empty |
+| Follow-up quality | Does message end with a question? | Yes — regex check |
+| Specialist routing | Did master call the right specialist? | Yes — check trace.specialists |
+| Language simplicity | Is the language 4-year-old friendly? | No — needs LLM judge |
+| Artifact quality | Are the KPIs, charts, and tables useful? | No — needs LLM judge |
+
+#### Approach: 2-layer eval
+
+**Layer 1 — Deterministic checks**: Run `runMasterAgent()` with test prompts, check outputs programmatically (word count, schema validation, intent match, datasetsUsed array).
+
+**Layer 2 — LLM judge**: For subjective quality, use a judge prompt that scores the response:
+
+```
+You are evaluating an HR copilot response. Score 1-5 on each dimension:
+
+1. SIMPLICITY: Is the language simple enough for a non-technical HR person?
+   (1 = jargon-heavy, 5 = crystal clear)
+2. USEFULNESS: Would an HR person find the artifacts actionable?
+   (1 = generic, 5 = specific and actionable)
+3. DATA GROUNDING: Are claims backed by actual data values?
+   (1 = hallucinated, 5 = every claim has a number)
+4. COMPLETENESS: Does the response fully address the user question?
+   (1 = missed the point, 5 = comprehensive)
+5. BREVITY: Is the chat message appropriately short with details in artifacts?
+   (1 = wall of text, 5 = concise)
+
+Return a JSON object with scores for each dimension and a brief justification.
+```
+
+#### Future: automated eval script
+
+Create `scripts/eval.ts` that runs 20 test prompts, collects outputs, runs deterministic checks, and optionally runs the LLM judge. Output a scorecard CSV. Track scores over time to detect prompt regressions.
+
+#### Key links
+
+- [OpenAI Evals guide](https://developers.openai.com/api/docs/guides/evals)
+- [OpenAI Evals API reference](https://developers.openai.com/api/reference/resources/evals)
+
 ## Current implementation note
 
 This repo includes:
