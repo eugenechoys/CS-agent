@@ -43,8 +43,6 @@ export async function runMasterAgentStreamed(
   const apiKey = ensureOpenAiApiKeyLoaded();
   if (!apiKey) throw new Error("OPENAI_API_KEY is missing.");
 
-  send("thinking", { step: "Understanding your request..." });
-
   const agentsModule = await import("@openai/agents");
   const { run } = agentsModule as any;
   const { createMasterAgent } = await import("@/lib/agents/master");
@@ -54,8 +52,6 @@ export async function runMasterAgentStreamed(
   const allDatasets = ensureAllSampleDatasetsLoaded();
   const selectedDataset = input.datasetId ? getDatasetById(input.datasetId) : undefined;
   const transcript = buildTranscript({ ...input, allDatasets, selectedDataset });
-
-  send("thinking", { step: "Routing to the right specialist..." });
 
   let result: any;
   try {
@@ -94,7 +90,7 @@ export async function runMasterAgentStreamed(
     console.error("[streaming] Error during stream iteration:", streamError);
   }
 
-  send("thinking", { step: "Finishing up..." });
+  send("thinking", { step: "Assembling results..." });
 
   /* Extract final output */
   const rawOutput = result?.finalOutput ?? result?.output ?? result;

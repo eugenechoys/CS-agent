@@ -451,6 +451,69 @@ textarea {
   margin: 8px 0 4px;
 }
 
+/* ─── Thinking log (per-message, collapsible) ─── */
+
+.thinking-log {
+  margin: 4px 0 8px;
+  max-width: 95%;
+  align-self: flex-start;
+}
+
+.thinking-log-toggle {
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(38, 107, 79, 0.04);
+  border: 1px solid rgba(38, 107, 79, 0.08);
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.thinking-log-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.thinking-log-toggle::before {
+  content: "▸";
+  font-size: 0.65rem;
+  transition: transform 0.15s;
+}
+
+details[open] > .thinking-log-toggle::before {
+  transform: rotate(90deg);
+}
+
+.thinking-log-steps {
+  padding: 8px 0 4px 6px;
+  border-left: 2px solid rgba(38, 107, 79, 0.15);
+  margin-left: 8px;
+}
+
+.thinking-log-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 3px 0;
+}
+
+.thinking-log-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.thinking-log-step:last-child .thinking-log-dot {
+  background: var(--warm);
+}
+
 /* ─── Thinking indicator ─── */
 
 .thinking-indicator {

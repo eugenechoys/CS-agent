@@ -39,6 +39,8 @@ export function CopilotShell() {
   const [mobilePane, setMobilePane] = useState<"chat" | "artifacts">("chat");
   const [isPending, startTransition] = useTransition();
   const [thinkingStep, setThinkingStep] = useState<string | null>(null);
+  const [thinkingLog, setThinkingLog] = useState<string[]>([]);
+  const [messageLogs, setMessageLogs] = useState<Map<number, string[]>>(new Map());
 
   /* ── resizable split ── */
   const [chatWidthPercent, setChatWidthPercent] = useState(30);
@@ -101,6 +103,7 @@ export function CopilotShell() {
     if (isMobile) setMobilePane("chat");
 
     setThinkingStep("Connecting...");
+    setThinkingLog([]);
 
     startTransition(async () => {
       try {
@@ -137,10 +140,22 @@ export function CopilotShell() {
               try {
                 const data = JSON.parse(line.slice(6));
                 if (currentEvent === "thinking") {
-                  setThinkingStep(data.step ?? "Working...");
+                  const step = data.step ?? "Working...";
+                  setThinkingStep(step);
+                  setThinkingLog((prev) => [...prev, step]);
                 } else if (currentEvent === "complete") {
                   setThinkingStep(null);
-                  setMessages((cur) => [...cur, { role: "assistant", content: data.message }]);
+                  setMessages((cur) => {
+                    const next = [...cur, { role: "assistant" as const, content: data.message as string }];
+                    /* Save thinking log for this message */
+                    setThinkingLog((log) => {
+                      if (log.length > 0) {
+                        setMessageLogs((prev) => new Map(prev).set(next.length - 1, [...log, "Done"]));
+                      }
+                      return [];
+                    });
+                    return next;
+                  });
                   setArtifacts(data.artifacts ?? []);
                   setTrace(data.trace ?? null);
                   if (data.artifacts?.length > 0) {
@@ -186,6 +201,7 @@ export function CopilotShell() {
     setArtifactHistory([]);
     setTrace(null);
     setPrompt("");
+    setMessageLogs(new Map());
   }
 
   /* ── chat pane ── */
@@ -228,11 +244,29 @@ export function CopilotShell() {
 
       <div className="chat-list compact">
         {messages.map((message, index) => (
-          <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
-            {message.role === "assistant" ? (
-              <ReactMarkdown>{message.content}</ReactMarkdown>
-            ) : (
-              message.content
+          <div key={`${message.role}-${index}`}>
+            <div className={`chat-bubble ${message.role}`}>
+              {message.role === "assistant" ? (
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              ) : (
+                message.content
+              )}
+            </div>
+            {/* Show thinking log for this message */}
+            {message.role === "assistant" && messageLogs.has(index) && (
+              <details className="thinking-log">
+                <summary className="thinking-log-toggle">
+                  Agent thinking process ({messageLogs.get(index)!.length} steps)
+                </summary>
+                <div className="thinking-log-steps">
+                  {messageLogs.get(index)!.map((step, i) => (
+                    <div key={i} className="thinking-log-step">
+                      <span className="thinking-log-dot" />
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
           </div>
         ))}
