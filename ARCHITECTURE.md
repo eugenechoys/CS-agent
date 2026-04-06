@@ -483,7 +483,7 @@ Think of memory as three distinct tiers, each with a different lifespan:
 
 | Layer | Scope | Example | Implementation |
 |-------|-------|---------|----------------|
-| In-session (short-term) | Within one conversation | Remembering what user said 3 messages ago | `SQLiteSession` from OpenAI SDK |
+| In-session (short-term) | Within one conversation | Remembering what user said 3 messages ago | `MemorySession` from JS SDK (Python SDK has `SQLiteSession`) |
 | Cross-session (mid-term) | Across multiple conversations | Remembering a user's preferences from last week | `RunContextWrapper` + DB-backed state |
 | Long-term / semantic | Permanent, searchable | Fetching user history via vector DB | Pinecone, Weaviate, Zep, or Mem0 |
 
@@ -493,23 +493,25 @@ For simple automation, session memory alone might be enough. But for enterprise-
 
 **Sessions** (built-in, the simplest approach): Sessions store conversation history for a specific session, allowing agents to maintain context without requiring explicit manual memory management. Each subsequent run with the same session includes the full conversation history.
 
-```python
-from agents import Agent, Runner, SQLiteSession
+**Note**: The Python SDK has `SQLiteSession` for file-based persistence. The JavaScript SDK (which Bokchoys uses) has `MemorySession` (in-memory only). For persistent sessions in JS, implement the `Session` interface with your own database backend.
 
-agent = Agent(name="Choys Agent", instructions="You are a helpful assistant")
+```typescript
+// JavaScript/TypeScript SDK (@openai/agents v0.8.3)
+import { Agent, run } from "@openai/agents";
 
-# In-memory (dev only — lost on restart)
-session = SQLiteSession("user_123")
+const agent = new Agent({ name: "Choys Agent", model: "gpt-5.1", instructions: "..." });
 
-# Persistent (production — survives restarts)
-session = SQLiteSession("user_123", "path/to/db.sqlite")
+// In-memory session (lost on restart)
+import { MemorySession } from "@openai/agents";
+const session = new MemorySession();
+const result = await run(agent, "Hello!", { session });
 
-result = await Runner.run(agent, "Hello!", session=session)
+// For persistent sessions, implement the Session interface with PostgreSQL/Supabase
 ```
 
 **Current Bokchoys state**: Conversation history is passed from the frontend as a transcript string on every request. No server-side session persistence. This means: lost on page refresh, no cross-session memory, growing token cost as conversation gets longer.
 
-**Recommended next step**: Replace frontend-passed transcript with `SQLiteSession` for development. Plan database-backed sessions for production (PostgreSQL or Supabase, since we already use PostgREST and Hoppscotch for some data access).
+**Recommended next step**: Use `MemorySession` from the JS SDK for development. Plan a custom `Session` implementation backed by PostgreSQL or Supabase for production.
 
 #### Managing long contexts (2 strategies)
 
@@ -544,12 +546,12 @@ The `RunContextWrapper` in the OpenAI Agents SDK provides the foundation for sta
 
 1. **Design memory around the task, not generically.** Ask: "If this were a human HR analyst performing the same task, what would they actively hold in working memory to get the job done?"
 2. **State-based is better than retrieval-based for structured data.** Retrieval-based memory treats past interactions as loosely related documents. State-based memory encodes knowledge as structured, authoritative fields with clear precedence. The agent behaves more like a persistent concierge than a search engine.
-3. **Start simple, layer up.** SQLiteSession first, then RunContextWrapper, then vector DB. Do not over-engineer from day one.
+3. **Start simple, layer up.** MemorySession first (JS SDK), then implement Session interface with DB, then add vector DB. Do not over-engineer from day one.
 4. **Bound noisy content aggressively.** Tool outputs should be truncated, long text middle-truncated, and function output content items budgeted. Auto-compaction should trigger when usage crosses approximately 90% of the model's context window.
 
 #### Quick decision guide
 
-- Need memory within ONE session? → Use `SQLiteSession` (in-memory or file-based)
+- Need memory within ONE session? → Use `MemorySession` (JS SDK) or `SQLiteSession` (Python SDK)
 - Need memory ACROSS sessions (user preferences, history)? → Use `RunContextWrapper` + structured state object, or plug in Mem0 or Redis
 - Need memory by MEANING (semantic search)? → Add a vector DB (Pinecone, Weaviate, Zep)
 - Conversation getting too long? → Short tasks: context trimming (last N turns). Long tasks: summarization.
@@ -565,7 +567,9 @@ The `RunContextWrapper` in the OpenAI Agents SDK provides the foundation for sta
 
 **Current state**: The `run()` function in `run-master-agent.ts` returns a complete result. Users see a thinking indicator with animated dots while waiting.
 
-**Recommendation**: Switch to `Runner.run_streamed()` with Server-Sent Events (SSE) to show real-time agent activity. Users would see: "Thinking..." → "Calling Strategy Expert..." → "Building your program..." → "Done."
+**Recommendation**: Use `run(agent, input, { stream: true })` (JS SDK) with Server-Sent Events to show real-time agent activity. **Status: IMPLEMENTED** — the API route now supports `{ stream: true }` and emits SSE events for thinking steps, specialist calls, and tool usage.
+
+**Current implementation**: `lib/agents/run-master-streamed.ts` iterates `RunStreamEvent` objects and emits `thinking`, `complete`, and `error` SSE events. The frontend reads the stream and updates the thinking indicator in real-time.
 
 **Impact**: Better UX. Users see which specialist is working and what tools are being called, similar to OpenAI's ChatGPT interface or Claude's thinking process.
 

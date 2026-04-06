@@ -219,6 +219,7 @@ export const ChatRequestSchema = z.object({
   message: z.string().min(1),
   datasetId: z.string().optional(),
   messages: z.array(ChatMessageSchema).optional(),
+  stream: z.boolean().optional(),
 });
 
 export const OrchestrationTraceSchema = z.object({

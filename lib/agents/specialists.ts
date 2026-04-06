@@ -144,7 +144,7 @@ export async function createSpecialistAgents() {
 
   const programDesignerAgent = new Agent({
     name: "ProgramDesignerAgent",
-    model: "gpt-5.1",
+    model: "gpt-4.1-mini",
     instructions: loadPrompt("specialists/program-designer.md"),
     tools: [
       generateProgramOutlineTool,
@@ -157,7 +157,7 @@ export async function createSpecialistAgents() {
 
   const commsPlannerAgent = new Agent({
     name: "CommsPlannerAgent",
-    model: "gpt-5.1",
+    model: "gpt-4.1-mini",
     instructions: loadPrompt("specialists/comms-planner.md"),
     tools: [generateCommsPlanTool, generateMessageSequenceTool],
   });
@@ -171,7 +171,7 @@ export async function createSpecialistAgents() {
 
   const reportComposerAgent = new Agent({
     name: "ReportComposerAgent",
-    model: "gpt-5.1",
+    model: "gpt-4.1-mini",
     instructions: loadPrompt("specialists/report-composer.md"),
     tools: [buildTableArtifactTool, buildChartSpecTool, buildSlidesArtifactTool],
   });

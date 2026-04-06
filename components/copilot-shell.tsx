@@ -38,6 +38,7 @@ export function CopilotShell() {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [mobilePane, setMobilePane] = useState<"chat" | "artifacts">("chat");
   const [isPending, startTransition] = useTransition();
+  const [thinkingStep, setThinkingStep] = useState<string | null>(null);
 
   /* ── resizable split ── */
   const [chatWidthPercent, setChatWidthPercent] = useState(30);
@@ -99,27 +100,70 @@ export function CopilotShell() {
     setPrompt("");
     if (isMobile) setMobilePane("chat");
 
+    setThinkingStep("Connecting...");
+
     startTransition(async () => {
       try {
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, datasetId, messages: nextMessages }),
+          body: JSON.stringify({ message, datasetId, messages: nextMessages, stream: true }),
         });
 
-        const data = (await response.json()) as ChatResponse & { error?: string };
-        if (!response.ok) throw new Error(data.error ?? "Request failed.");
-
-        setMessages((cur) => [...cur, { role: "assistant", content: data.message }]);
-        setArtifacts(data.artifacts);
-        setTrace(data.trace);
-        /* Save to history */
-        if (data.artifacts.length > 0) {
-          const label = message.length > 40 ? message.slice(0, 37) + "..." : message;
-          setArtifactHistory((prev) => [...prev, { label, artifacts: data.artifacts, trace: data.trace }]);
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error ?? "Request failed.");
         }
-        if (isMobile) setMobilePane("artifacts");
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No stream available.");
+
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          let currentEvent = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith("data: ") && currentEvent) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (currentEvent === "thinking") {
+                  setThinkingStep(data.step ?? "Working...");
+                } else if (currentEvent === "complete") {
+                  setThinkingStep(null);
+                  setMessages((cur) => [...cur, { role: "assistant", content: data.message }]);
+                  setArtifacts(data.artifacts ?? []);
+                  setTrace(data.trace ?? null);
+                  if (data.artifacts?.length > 0) {
+                    const label = message.length > 40 ? message.slice(0, 37) + "..." : message;
+                    setArtifactHistory((prev) => [...prev, { label, artifacts: data.artifacts, trace: data.trace }]);
+                  }
+                  if (isMobile) setMobilePane("artifacts");
+                } else if (currentEvent === "error") {
+                  throw new Error(data.message ?? "Agent error.");
+                }
+              } catch (parseErr) {
+                if (parseErr instanceof Error && parseErr.message !== "Agent error." && !parseErr.message.includes("JSON")) {
+                  throw parseErr;
+                }
+              }
+              currentEvent = "";
+            }
+          }
+        }
+
+        setThinkingStep(null);
       } catch (error) {
+        setThinkingStep(null);
         const text = error instanceof Error ? error.message : "Something went wrong.";
         setMessages((cur) => [...cur, { role: "assistant", content: `Oops: ${text}` }]);
       }
@@ -192,7 +236,7 @@ export function CopilotShell() {
             )}
           </div>
         ))}
-        {isPending && <ThinkingIndicator />}
+        {(isPending || thinkingStep) && <ThinkingIndicator step={thinkingStep} />}
         <div ref={chatEndRef} />
       </div>
 
