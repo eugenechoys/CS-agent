@@ -1,108 +1,44 @@
-# Bokchoys
+# CS Agent — CHOYS AI Agent Harness
 
-Bokchoys is an AI HR engagement copilot being built by Choys. Its job is to help HR teams improve wellbeing programs with more strategy, clearer execution, and better communication.
+This repo is an AI agent harness demo built on top of the [OpenAI Agents SDK](https://github.com/openai/openai-agents-python). It contains two production-style AI agents:
 
-This repo is the foundation for that product. It gives the team a shared model for what Bokchoys is, how it behaves, and how engineers should structure the system as it grows.
+1. **Bokchoys HR Copilot** — helps HR teams brainstorm, design, and communicate employee engagement programs
+2. **CS Agent** — a customer success agent for the CHOYS employee wellbeing platform, with a paired trainer agent for evaluation and coaching
 
-## What Bokchoys does
+## What this is
 
-Bokchoys helps HR teams with four kinds of work:
+This project demonstrates how to build multi-agent systems using Next.js + the OpenAI Agents SDK. It includes:
 
-- Brainstorming when the idea is still vague
-- Designing concrete programs when the idea is already clear
-- Analyzing uploaded or mock data
-- Generating report-style outputs with tables, charts, and slide-like summaries
+- Multi-agent orchestration with a master agent coordinating specialists
+- Streaming responses with real-time thinking indicators
+- Guardrails to keep agents on-scope
+- Structured outputs validated through Zod schemas
+- Tool-based execution for deterministic operations
+- Prompt management with live editing via the UI
+- A trainer/evaluator agent pattern for CS quality assurance
 
-The important product principle is simple:
+## Tech stack
 
-- The agent decides what to recommend
-- HR steers and approves
-- Tools build validated outputs
-- The UI renders typed artifacts
-
-Bokchoys is not meant to be a passive assistant that only reformats instructions. It is meant to behave more like an HR strategist that can recommend the right program shape, engagement format, and communication pattern.
-
-## How Bokchoys thinks
-
-If HR arrives with a vague request, Bokchoys should help shape the idea first. That usually means:
-
-- clarifying the goal
-- challenging weak assumptions
-- proposing a few stronger directions
-- turning the early concept into a usable draft artifact
-
-If HR arrives with a clear request, Bokchoys should move directly into program design. That means the system can decide:
-
-- what poll, survey, or game best fits
-- what the cadence should look like
-- how communication should be staged
-- what draft outputs need to be produced
-
-Every designed program should include a communication plan by default:
-
-- before the program
-- during the program
-- after the program
-
-## Channels and engagement types
-
-Bokchoys is designed to think across these channels:
-
-- WhatsApp for more direct or important moments
-- Email for official communication, launches, and summaries
-- Slack for reminders and in-work nudges
-- Teams for reminders and in-work prompts
-- Browser extension for ambient nudges
-
-It is also designed to recommend and draft multiple engagement formats:
-
-- Polls
-- Surveys
-- Games
-- Communication sequences
-- Program calendars
-- Analytical tables
-- Chart summaries
-- Slides-style reports
-
-## Example workflows
-
-### 1. Vague idea
-
-“We want to do something around employee stress, but we do not know what the program should look like.”
-
-Bokchoys should brainstorm a few directions first, show the tradeoffs, and recommend which one to turn into a real program draft.
-
-### 2. Clear program brief
-
-“Design a one-day hydration challenge and include the communications before, during, and after.”
-
-Bokchoys should move straight into program design, choose the right engagement mix, and produce a full draft program plus communications plan.
-
-### 3. Data question
-
-“We uploaded engagement data. Show us the most useful table and explain what stands out.”
-
-Bokchoys should ground the answer in the available data and produce a draft analytical artifact that HR can review.
-
-### 4. Report request
-
-“Turn this participation dataset into a short leadership-ready report.”
-
-Bokchoys should generate a report-style package with tables, charts, and slide-like outputs.
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js (App Router), TypeScript |
+| AI | OpenAI Agents SDK (`@openai/agents`), OpenAI API |
+| Validation | Zod |
+| Styling | Tailwind CSS |
+| Runtime | Node.js 18+ |
 
 ## Getting started
 
 ### Prerequisites
 
 - Node.js 18 or later
-- An OpenAI API key (GPT-5.1 access recommended)
+- An OpenAI API key (GPT-4o or GPT-4.1 access recommended)
 
 ### Setup
 
 ```bash
-git clone https://github.com/eugworld/bokchoy.git
-cd bokchoy
+git clone https://github.com/eugenechoys/CS-agent.git
+cd CS-agent
 cp .env.example .env.local
 # Edit .env.local and add your OpenAI API key
 npm install
@@ -112,49 +48,115 @@ npm run dev
 
 ### Environment variables
 
+Copy `.env.example` to `.env.local` and fill in your values:
+
+```bash
+cp .env.example .env.local
+```
+
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `OPENAI_API_KEY` | Yes | Your OpenAI API key. The copilot needs this to run the agent. |
+| `OPENAI_API_KEY` | **Yes** | Your OpenAI API key. Get one at platform.openai.com |
+| `CHOYS_DEMO_ACCESS_TOKEN` | No | Pre-seeded demo token to skip OTP sign-in on the CS agent demo |
+| `CHOYS_API_ENV` | No | Backend environment — `dev` or `prod` (default: `dev`) |
+| `CHOYS_API_BASE_URL_DEV` | No | Override for the dev API base URL |
+| `CHOYS_API_BASE_URL_PROD` | No | Override for the prod API base URL |
+| `CHOYS_APP_PLATFORM` | No | Platform identifier (default: `choys-web-app`) |
+
+> **Never commit `.env.local`** — it is gitignored by default.
 
 ## Pages
 
 | Page | URL | What it does |
 |------|-----|-------------|
-| Landing | `/` | Product overview, architecture visualization, technical education |
-| Copilot | `/copilot` | Main chat interface — 30% chat, 70% artifacts, resizable |
-| Prompt Editor | `/prompts` | View and edit all 17 agent, specialist, skill, and policy prompts |
-| Raw Data | `/raw-data` | Browse all 12 sample datasets in table format |
+| Landing | `/` | Product overview and architecture visualization |
+| HR Copilot | `/copilot` | Main Bokchoys chat interface — 30% chat, 70% artifact panel |
+| CS Agent | `/cs-agent` | Customer success chat agent demo with employee data lookup |
+| CS Trainer | `/cs-trainer` | Trainer agent that evaluates CS agent responses |
+| Prompt Editor | `/prompts` | View and live-edit all agent, specialist, skill, and policy prompts |
+| Raw Data | `/raw-data` | Browse all sample datasets in table format |
 
-## How to use this repo
+## The CS Agent
 
-### If you are new
+The CS Agent is a warm, friendly support assistant for the CHOYS employee wellbeing platform. It handles two types of users:
 
-1. Read this `README.md` to understand what Bokchoys does
-2. Open `/copilot` and try the starter prompts
-3. Open `/raw-data` to see what data the agent can analyze
+- **Employees** asking about their insurance, benefits, wellness programs, or how to use the app
+- **Prospects** considering CHOYS who have questions about the product or features
 
-### If you are a PM (Janhavi)
+### What it can do
 
-1. Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the system design
-2. Open `/prompts` to read and edit all agent prompts
-3. Read [`TEAM-CHECKLISTS.md`](./TEAM-CHECKLISTS.md) for your checklist
-4. Focus on: defining ideal experience per intent, owning prompts, running evals
+- Answer questions about CHOYS products, features, insurance plans, and benefits
+- Look up a logged-in employee's personal data (insurance, benefits, enrollment status)
+- Guide users through common tasks like filing a claim, resetting a password, or joining a challenge
 
-### If you are an engineer (Atul, Rohit)
+### What it cannot do
 
-1. Read [`ARCHITECTURE.md`](./ARCHITECTURE.md) — especially the new "Recommendations to consider" section
-2. Read [`TEAM-CHECKLISTS.md`](./TEAM-CHECKLISTS.md) for your specific checklist
-3. Read the 5 key files first:
-   - `lib/agents/run-master-agent.ts` — the main orchestration flow
-   - `lib/agents/master.ts` — how the master agent is created
-   - `lib/agents/specialists.ts` — how specialists are created and connected
-   - `lib/schemas/bokchoys.ts` — all Zod schemas
-   - `lib/prompts/load-prompt.ts` — how prompts are loaded, cached, and saved
-4. Read [`prompts/README.md`](./prompts/README.md) for the prompt pack
+- Make changes to accounts, insurance, or benefits — it directs users to HR or support@getchoys.com
+- Provide medical or legal advice
+- Share one employee's data with another
+- Approve or deny insurance claims
 
-### If you are testing evals
+### Demo login
 
-1. Read the "Evals" section in [`ARCHITECTURE.md`](./ARCHITECTURE.md)
-2. Use `/copilot` with the 4 starter prompts to test all intent paths
-3. Check "How I worked on this" trace on each response to verify AI-decided vs template fallback
-4. Score responses using the judge prompt template in ARCHITECTURE.md
+To try the CS agent with sample employee data, use the demo login page. You can set a `CHOYS_DEMO_ACCESS_TOKEN` in your `.env.local` to pre-authenticate.
+
+## The CS Trainer Agent
+
+The CS Trainer evaluates CS agent responses for quality, tone, accuracy, and policy compliance. It is designed to:
+
+- Score CS agent responses against a rubric
+- Identify gaps in empathy, clarity, or policy adherence
+- Suggest improved responses
+- Help onboard new CS team members by demonstrating ideal responses
+
+Access it at `/cs-trainer`.
+
+## The HR Copilot (Bokchoys)
+
+Bokchoys helps HR teams with four kinds of work:
+
+- **Brainstorming** — clarifying vague ideas into strong program directions
+- **Program design** — building concrete engagement programs with communication plans
+- **Data analysis** — grounded analysis of employee engagement datasets
+- **Report generation** — leadership-ready slide and table artifacts
+
+Every designed program includes a communication plan covering before, during, and after the program.
+
+Access it at `/copilot`.
+
+## Project structure
+
+```
+app/
+  api/           # API routes for each agent
+  copilot/       # HR copilot UI
+  cs-agent/      # CS agent UI
+  cs-trainer/    # CS trainer UI
+  prompts/       # Live prompt editor
+  raw-data/      # Sample data browser
+lib/
+  agents/        # Agent definitions and run loops
+  config/        # API key loading
+  cs-demo/       # CS demo authentication and session
+  data/          # Sample datasets
+  prompts/       # Prompt loading and caching
+  schemas/       # Zod validation schemas
+  tools/         # Deterministic execution tools
+components/      # React UI components
+prompts/         # Markdown prompt files (editable via /prompts)
+```
+
+## Key files
+
+| File | What it does |
+|------|-------------|
+| `lib/agents/cs-agent.ts` | CS agent definition and tool wiring |
+| `lib/agents/trainer-agent.ts` | Trainer agent for evaluating CS responses |
+| `lib/agents/run-master-agent.ts` | HR copilot orchestration loop |
+| `lib/agents/run-cs-streamed.ts` | CS agent streaming run loop |
+| `lib/agents/run-trainer-streamed.ts` | Trainer agent streaming run loop |
+| `lib/schemas/cs-schemas.ts` | Zod schemas for CS agent I/O |
+| `lib/tools/cs-tools.ts` | CS tools (employee lookup, knowledge base) |
+| `lib/tools/trainer-tools.ts` | Trainer tools (scoring, evaluation) |
+| `prompts/cs-agent.md` | CS agent system prompt (editable at `/prompts`) |
+| `prompts/cs-trainer-agent.md` | Trainer agent system prompt |

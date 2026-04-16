@@ -1,8 +1,10 @@
 import { getSampleDatasetDefinition, SAMPLE_DATASETS } from "@/lib/data/sample-datasets";
 import type { ArtifactSpec, Dataset } from "@/lib/schemas/bokchoys";
+import type { CsConversation } from "@/lib/schemas/cs-schemas";
 
 const artifactStore = new Map<string, ArtifactSpec>();
 const datasetStore = new Map<string, Dataset>();
+const csConversationStore = new Map<string, CsConversation>();
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
@@ -101,6 +103,32 @@ export function ensureAllSampleDatasetsLoaded(): Dataset[] {
 
 export function getAllDatasets(): Dataset[] {
   return [...datasetStore.values()];
+}
+
+/* ═══════════════════════════════════════════════
+   CS Conversation Store
+   ═══════════════════════════════════════════════ */
+
+export function saveCsConversation(conv: CsConversation): void {
+  csConversationStore.set(conv.id, conv);
+}
+
+export function getCsConversation(id: string): CsConversation | undefined {
+  return csConversationStore.get(id);
+}
+
+export function getCsConversationsByUser(userId: string): CsConversation[] {
+  return [...csConversationStore.values()].filter((c) => c.userId === userId);
+}
+
+export function getCsConversationsByTenant(tenantId: string): CsConversation[] {
+  return [...csConversationStore.values()].filter((c) => c.tenantId === tenantId);
+}
+
+export function listCsConversations(): CsConversation[] {
+  return [...csConversationStore.values()].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
 }
 
 export function getOrCreateDefaultSampleDataset() {

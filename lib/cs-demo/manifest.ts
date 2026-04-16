@@ -1,0 +1,133 @@
+export type CuratedCsEndpoint = {
+  id: string;
+  label: string;
+  endpointGroup: string;
+  method: "GET" | "POST";
+  path: string;
+  scope: "tenant" | "user";
+  fields: string[];
+  description: string;
+};
+
+export const CURATED_CS_ENDPOINTS: CuratedCsEndpoint[] = [
+  {
+    id: "tenant-list",
+    label: "Tenant List",
+    endpointGroup: "tenant",
+    method: "GET",
+    path: "/v2/portal/tenants",
+    scope: "tenant",
+    fields: ["id", "tenantId", "companyName", "name", "isExpired"],
+    description: "Lists tenants available to the authenticated demo user.",
+  },
+  {
+    id: "tenant-detail",
+    label: "Tenant Detail",
+    endpointGroup: "tenant",
+    method: "GET",
+    path: "/v2/web/tenants",
+    scope: "tenant",
+    fields: ["companyName", "name", "industry", "country"],
+    description: "Resolves the current tenant name and base tenant details.",
+  },
+  {
+    id: "tenant-users",
+    label: "Tenant Users",
+    endpointGroup: "users",
+    method: "GET",
+    path: "/portal/tenant/users/:tenantId",
+    scope: "tenant",
+    fields: ["userId", "fullName", "emailAddress", "role", "accountStatus", "jobTitle", "dateJoined"],
+    description: "Lists tenant-scoped users for employee selection and profile lookups.",
+  },
+  {
+    id: "user-insurance",
+    label: "User Insurance",
+    endpointGroup: "insurance",
+    method: "GET",
+    path: "/portal/insurance/user/:userId",
+    scope: "user",
+    fields: ["provider", "plan_name", "coverage_amount", "copay", "benefits"],
+    description: "Returns user insurance and benefits details when available.",
+  },
+  {
+    id: "user-coworker-profile",
+    label: "User Profile",
+    endpointGroup: "profile",
+    method: "GET",
+    path: "/user-profile/co-worker/:userId",
+    scope: "user",
+    fields: ["fullName", "emailAddress", "department", "jobTitle", "role", "employeeId"],
+    description: "Returns the selected employee's coworker profile when available.",
+  },
+  {
+    id: "tenant-activity",
+    label: "Tenant Activity",
+    endpointGroup: "activity",
+    method: "GET",
+    path: "/v2/web/tenants/activity",
+    scope: "tenant",
+    fields: ["activityData", "series", "xCategory"],
+    description: "Returns tenant activity timelines used for behavior context.",
+  },
+  {
+    id: "tenant-mood-record",
+    label: "Tenant Mood Record",
+    endpointGroup: "mood",
+    method: "GET",
+    path: "/web/mood/stats/mood-record?period=12",
+    scope: "tenant",
+    fields: ["data", "series", "xCategory"],
+    description: "Provides mood trends for employee wellbeing context.",
+  },
+  {
+    id: "recognition-recent",
+    label: "Recent Recognition",
+    endpointGroup: "recognition",
+    method: "GET",
+    path: "/web/recognition/recent",
+    scope: "tenant",
+    fields: ["recentRecognitions", "totalGiven"],
+    description: "Provides recent recognition activity for contextual answers.",
+  },
+  {
+    id: "coin-insights",
+    label: "Coin Insights",
+    endpointGroup: "coins",
+    method: "GET",
+    path: "/web/coins/insights?period=12",
+    scope: "tenant",
+    fields: ["balance", "earned", "redeemed"],
+    description: "Provides tenant reward/coin activity for support answers.",
+  },
+  {
+    id: "user-earned-coins",
+    label: "User Earned Coins",
+    endpointGroup: "coins",
+    method: "POST",
+    path: "/coins/earned/:userId",
+    scope: "user",
+    fields: ["coins", "amount", "transactionType", "status", "createdAt"],
+    description: "Returns user-level coin earning records when available.",
+  },
+  {
+    id: "user-profile-answers",
+    label: "User Profile Answers",
+    endpointGroup: "profile",
+    method: "GET",
+    path: "/user-profile/answer/all?page=1",
+    scope: "user",
+    fields: ["question", "answer", "title", "value"],
+    description: "Returns user profile answers and manual-of-you style fields when available.",
+  },
+  {
+    id: "tenant-surveys",
+    label: "Tenant Surveys",
+    endpointGroup: "surveys",
+    method: "GET",
+    path: "/web/surveys",
+    scope: "tenant",
+    fields: ["id", "title", "status", "endDate"],
+    description: "Lists surveys associated with the selected tenant.",
+  },
+];

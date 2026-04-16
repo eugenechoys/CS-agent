@@ -50,6 +50,33 @@ export function savePrompt(relativePath: string, content: string): void {
   cache.delete(normalized);
 }
 
+/** Load all .md files from a prompts subdirectory and concatenate with section headers */
+export function loadAllKnowledgeFiles(subdir: string): string {
+  const dir = path.join(process.cwd(), "prompts", subdir);
+  if (!fs.existsSync(dir)) return "";
+
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
+  return files
+    .map((file) => {
+      const name = file.replace(".md", "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const content = loadPrompt(`${subdir}/${file}`);
+      return `## ${name}\n\n${content}`;
+    })
+    .join("\n\n---\n\n");
+}
+
+/** Delete a prompt file and invalidate cache */
+export function deletePrompt(relativePath: string): void {
+  const normalized = relativePath.replace(/^\/+/, "");
+  if (normalized.includes("..")) throw new Error("Invalid path");
+
+  const absolutePath = path.join(process.cwd(), "prompts", normalized);
+  if (fs.existsSync(absolutePath)) {
+    fs.unlinkSync(absolutePath);
+    cache.delete(normalized);
+  }
+}
+
 /** List all prompt files recursively */
 export function listPromptFiles(): { path: string; type: "agent" | "specialist" | "skill" | "policy" | "other"; name: string }[] {
   const promptsDir = path.join(process.cwd(), "prompts");
