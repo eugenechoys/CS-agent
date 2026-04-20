@@ -6,9 +6,11 @@ import { CsChatRequestSchema } from "@/lib/schemas/cs-schemas";
 import { ZodError } from "zod";
 import { cookies } from "next/headers";
 import { CS_DEMO_COOKIE_KEYS } from "@/lib/cs-demo/cookies";
+import { ensureDBCacheWarmed } from "@/lib/prompts/load-prompt";
 
 export async function POST(request: Request) {
   try {
+    await ensureDBCacheWarmed();
     const body = await request.json();
     const parsed = CsChatRequestSchema.parse(body);
     const cookieStore = await cookies();

@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
 import { listPromptFiles, loadPromptRaw, savePrompt } from "@/lib/prompts/load-prompt";
 
-/** GET /api/prompts - list all prompts */
+/** GET /api/prompts - list all prompts or return a single file's content */
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const file = url.searchParams.get("file");
 
     if (file) {
-      /* Return single prompt raw content */
-      const content = loadPromptRaw(file);
+      const content = await loadPromptRaw(file);
       return NextResponse.json({ file, content });
     }
 
-    /* List all prompt files */
-    const files = listPromptFiles();
+    const files = await listPromptFiles();
     return NextResponse.json({ files });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load prompts";
@@ -35,7 +33,7 @@ export async function POST(request: Request) {
       throw new Error("Missing content");
     }
 
-    savePrompt(file, content);
+    await savePrompt(file, content);
     return NextResponse.json({ success: true, file });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to save prompt";

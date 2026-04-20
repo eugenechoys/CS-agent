@@ -1,0 +1,15 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "OPENAI_API_KEY": "@openai-api-key",
+    "DATABASE_URL": "@database-url",
+    "CHOYS_API_ENV": "@choys-api-env",
+    "CHOYS_API_BASE_URL_DEV": "@choys-api-base-url-dev",
+    "CHOYS_API_BASE_URL_PROD": "@choys-api-base-url-prod",
+    "CHOYS_DEMO_ACCESS_TOKEN": "@choys-demo-access-token",
+    "CHOYS_APP_PLATFORM": "@choys-app-platform"
+  }
+}

@@ -20,18 +20,23 @@ Welcome to CHOYS! Follow these steps to get started as an employee user.
   - Go to **Dependents** or **Family** section.
   - Add your dependents’ details as prompted.
 
-## 4. Explore your benefits dashboard
+## 4. Activate your insurance plan and welcome coins
+- Every new customer that is onboarded to CHOYS will receive **100 coins**.
+- To activate your insurance plan, go to **choys.com/activation** and follow the on-screen steps.
+- Activation ensures your coverage and coins are properly linked to your account.
+
+## 5. Explore your benefits dashboard
 - From the home screen, open the **Benefits** or **Dashboard** tab.
 - Review your available benefits (e.g., wellness programs, insurance info, rewards, allowances where applicable).
 - Check any **important announcements** or **tasks** highlighted for new joiners.
 
-## 5. Join your first wellness challenge
+## 6. Join your first wellness challenge
 - Navigate to the **Challenges** / **Wellness** section in the app.
 - Browse available **wellness challenges** hosted by CHOYS or your company.
 - Tap on a challenge to view details and **Join**.
 - Follow the challenge instructions (e.g., activity tracking, check-ins, submissions).
 
-## 6. Set up your notification preferences
+## 7. Set up your notification preferences
 - Go to **Settings** in the CHOYS app.
 - Open **Notifications** or **Notification Preferences**.
 - Choose how you’d like to be notified about **challenges**, **rewards**, and other updates (e.g., push notifications, email where available).

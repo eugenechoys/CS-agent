@@ -4,9 +4,11 @@ import { runMasterAgentStreamed } from "@/lib/agents/run-master-streamed";
 import { saveArtifacts } from "@/lib/store/memory";
 import { ChatRequestSchema } from "@/lib/schemas/bokchoys";
 import { ZodError } from "zod";
+import { ensureDBCacheWarmed } from "@/lib/prompts/load-prompt";
 
 export async function POST(request: Request) {
   try {
+    await ensureDBCacheWarmed();
     const body = await request.json();
     const parsed = ChatRequestSchema.parse(body);
 

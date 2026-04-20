@@ -1,6 +1,7 @@
 import { runTrainerAgentStreamed } from "@/lib/agents/run-trainer-streamed";
 import { z } from "zod";
 import { ZodError } from "zod";
+import { ensureDBCacheWarmed } from "@/lib/prompts/load-prompt";
 
 const TrainerChatSchema = z.object({
   message: z.string().min(1),
@@ -11,6 +12,7 @@ const TrainerChatSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await ensureDBCacheWarmed();
     const body = await request.json();
     const parsed = TrainerChatSchema.parse(body);
 

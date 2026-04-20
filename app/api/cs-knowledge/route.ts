@@ -16,14 +16,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Path must be within the CS prompt directories." }, { status: 400 });
     }
     try {
-      const content = loadPromptRaw(filePath);
+      const content = await loadPromptRaw(filePath);
       return NextResponse.json({ path: filePath, content });
     } catch {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
   }
 
-  const allFiles = listPromptFiles();
+  const allFiles = await listPromptFiles();
   const csFiles = allFiles.filter((f) => isAllowedPromptPath(f.path));
 
   return NextResponse.json({ files: csFiles });
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Path must be within the CS prompt directories." }, { status: 400 });
     }
 
-    savePrompt(filePath, content);
+    await savePrompt(filePath, content);
     return NextResponse.json({ success: true, path: filePath });
   } catch (error) {
     return NextResponse.json(
@@ -63,7 +63,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Only CS knowledge files can be deleted." }, { status: 400 });
     }
 
-    deletePrompt(filePath);
+    await deletePrompt(filePath);
     return NextResponse.json({ success: true, path: filePath });
   } catch (error) {
     return NextResponse.json(

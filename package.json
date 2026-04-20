@@ -12,6 +12,7 @@
     "@openai/agents": "latest",
     "next": "latest",
     "openai": "latest",
+    "pg": "^8.20.0",
     "react": "latest",
     "react-dom": "latest",
     "react-markdown": "^10.1.0",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "latest",
+    "@types/pg": "^8.20.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "typescript": "latest"

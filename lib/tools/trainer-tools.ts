@@ -25,7 +25,7 @@ export async function createTrainerTools() {
       "List all CS knowledge and policy files. Returns file paths and names. Use this to understand what files exist before deciding where to add or edit content.",
     parameters: z.object({}),
     execute: async () => {
-      const allFiles = listPromptFiles();
+      const allFiles = await listPromptFiles();
       const csFiles = allFiles.filter((f: any) => isAllowedPath(f.path));
       return JSON.stringify(csFiles, null, 2);
     },
@@ -45,7 +45,7 @@ export async function createTrainerTools() {
         return JSON.stringify({ error: "Can only access CS prompt directories." });
       }
       try {
-        const content = loadPromptRaw(file_path);
+        const content = await loadPromptRaw(file_path);
         return JSON.stringify({ file_path, content });
       } catch {
         return JSON.stringify({ error: `File not found: ${file_path}` });
@@ -79,7 +79,7 @@ export async function createTrainerTools() {
         return JSON.stringify({ error: "Can only write to CS prompt directories." });
       }
       try {
-        savePrompt(file_path, content);
+        await savePrompt(file_path, content);
         return JSON.stringify({
           success: true,
           file_path,
@@ -119,7 +119,7 @@ export async function createTrainerTools() {
         return JSON.stringify({ error: "Can only create files inside CS prompt directories." });
       }
       try {
-        savePrompt(filePath, content);
+        await savePrompt(filePath, content);
         return JSON.stringify({
           success: true,
           file_path: filePath,
@@ -150,7 +150,7 @@ export async function createTrainerTools() {
         return JSON.stringify({ error: "Can only delete CS knowledge files." });
       }
       try {
-        deletePrompt(file_path);
+        await deletePrompt(file_path);
         return JSON.stringify({ success: true, file_path, reason, message: `Deleted ${file_path}: ${reason}` });
       } catch (err) {
         return JSON.stringify({
